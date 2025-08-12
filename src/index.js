@@ -2,12 +2,17 @@ const MAX_MESSAGE_LENGTH = 10000;
 const MAX_CONTEXT_ENTRY_LENGTH = 2000;
 const SHOULD_ENGAGE_THROTTLING_MS = 15000;
 
+//decrease on message if headers are null
+
 export default class Heylock{    
     //#region Initialization
     constructor(agentKey, options = {}){
         this.agentKey = agentKey;
 
-        this.useStorage = options.useStorage ?? true;
+        // Detect environment early and default useStorage accordingly
+        const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+        
+        this.useStorage = options.useStorage ?? isBrowser;
         this.useMessageHistory = options.useMessageHistory ?? true;
         this.suppressWarnings = options.suppressWarnings ?? false;
         
@@ -27,11 +32,13 @@ export default class Heylock{
 
         //#region Manage context in storage
         if(this.useStorage){
+            const storageKey = `heylock:${options.agentId || 'default'}:context`;
+
             this.onContextChange(() => {
-                this.#setStorageItem('context', this.context);
+                this.#setStorageItem(storageKey, this.context);
             });
 
-            const contextStorageString = this.#getStorageItem('context');
+            const contextStorageString = this.#getStorageItem(storageKey);
 
             if (contextStorageString) {
                 try {
@@ -70,40 +77,34 @@ export default class Heylock{
 
             if(verifyKeyRes.status === 500){
                 throw new Error("Agent initialization failed: we are experiencing temporary server issues. Please try again later.");
-            } 
-            
-            else if(verifyKeyRes.status !== 200){
+            } else if(verifyKeyRes.status !== 200){
                 throw new Error("Agent initialization failed: something went wrong. Please check your internet connection and try again.");
             }
 
-            else if(verifyKeyRes.status === 200){
-                const verifyKeyData = await verifyKeyRes.json();
+            const verifyKeyData = await verifyKeyRes.json();
 
-                if(typeof verifyKeyData.valid !== 'boolean'){
-                    throw new Error("Agent initialization failed: received an unexpected response from the server. Please ensure you are using the correct version of the package.");
-                }
-                
-                if(verifyKeyData.valid === false){
-                    throw new Error("Agent initialization failed: the provided agentKey is invalid. Please verify your key and try again.");
-                }
-
-                this.#isInitialized = true;
-
-                //Must be called after isInitialized is set to true
-                await this.fetchUsageRemaining();
-
-                this.#onInitializedExecute();
-            }
-        } catch(error){
-            if(error.message.includes("Agent initialization failed: ")){
-                throw new Error(error.message);
+            if(typeof verifyKeyData.valid !== 'boolean'){
+                throw new Error("Agent initialization failed: received an unexpected response from the server. Please ensure you are using the correct version of the package.");
             }
             
-            throw new Error(
-                "Agent initialization failed: an unexpected error occurred. " +
-                "Please ensure you are using the correct version of the package. " +
-                `Error details: ${error}`
-            );
+            if(verifyKeyData.valid === false){
+                throw new Error("Agent initialization failed: the provided agentKey is invalid. Please verify your key and try again.");
+            }
+
+            this.#isInitialized = true;
+
+            try {
+                await this.fetchUsageRemaining();
+            } catch (error) {
+                !this.suppressWarnings && console.warn("Initialization warning: failed to fetch usageRemaining:", error);
+            }
+
+            this.#onInitializedExecute();
+        } catch(error){
+            this.#isInitialized = false;
+            !this.suppressWarnings && console.warn(error?.message || error);
+            this.#onInitializedExecute();
+            // Do not rethrow from async initializer to avoid unhandled rejections
         }
     }
     //#endregion        
@@ -120,21 +121,22 @@ export default class Heylock{
         rewrites: null
     }
     get usageRemaining(){
-        return this.#usageRemaining ?? {
-            messages: null,
-            sorts: null,
-            rewrites: null
-        }
+        const current = this.#usageRemaining ?? { messages: null, sorts: null, rewrites: null };
+        // Return a defensive shallow-frozen copy to prevent external mutation
+        return Object.freeze({ ...current });
     }
 
     #messageHistory = [];
     get messageHistory(){
-        return this.#messageHistory ?? [];
+        const list = this.#messageHistory ?? [];
+        // Defensive copy of array and entries to prevent external mutation of internal state
+        return Object.freeze(list.map(message => ({ content: message.content, role: message.role })));
     }
 
     #context = [];
     get context(){
-        return this.#context ?? [];
+        const list = this.#context ?? [];
+        return Object.freeze(list.map(entry => ({ content: entry.content, timestamp: entry.timestamp })));
     }
     //#endregion
 
@@ -148,13 +150,12 @@ export default class Heylock{
                 throw new Error("onInitialized failed: callback must be a function.");
             }
 
-            const newArrayLength = this.#onInitializedCallbacks.push(callback);
+            this.#onInitializedCallbacks.push(callback);
 
             return () => {
-                const index = newArrayLength - 1;
-                
+                const index = this.#onInitializedCallbacks.indexOf(callback);
                 if (index !== -1) {
-                    this.#onInitializedCallbacks.splice(index, 1);                    
+                    this.#onInitializedCallbacks.splice(index, 1);
                 }
             };
         }
@@ -239,15 +240,15 @@ export default class Heylock{
     addMessage(content, role = "user"){
         //#region Validate arguments
         if(typeof content !== 'string'){
-            throw new Error("addMessageToHistory failed: content must be a string.");
+            throw new Error("addMessage failed: content must be a string.");
         }
         
         if(content.length > MAX_MESSAGE_LENGTH){
-            throw new Error(`addMessageToHistory failed: content exceeds maximum allowed length of ${MAX_MESSAGE_LENGTH} characters.`);
+            throw new Error(`addMessage failed: content exceeds maximum allowed length of ${MAX_MESSAGE_LENGTH} characters.`);
         }
         
         if(role !== 'user' && role !== 'assistant'){
-            throw new Error("addMessageToHistory failed: role must be either 'user' or 'assistant'.");
+            throw new Error("addMessage failed: role must be either 'user' or 'assistant'.");
         }
         //#endregion
 
@@ -464,8 +465,8 @@ export default class Heylock{
             if (entry.timestamp !== undefined && typeof entry.timestamp === 'number' && Number.isFinite(entry.timestamp)) {
                 const now = Date.now();
                 
-                if (timestamp > now) {
-                    console.warn("setContext warning: timestamp is in the future. This may lead to unexpected behavior.");
+                if (entry.timestamp > now) {
+                    !this.suppressWarnings && console.warn(`setContext warning: timestamp at index ${index} is in the future. This may lead to unexpected behavior.`);
                 }
             }
         }
@@ -513,7 +514,7 @@ export default class Heylock{
             return `${days} day${days !== 1 ? 's' : ''} ago`;
         };
 
-        this.#context.map(entry => {
+        this.#context.forEach(entry => {
             contextString += `${entry.content} ${formatTimestampAgo(entry.timestamp)}. `;
         });
 
@@ -662,6 +663,7 @@ export default class Heylock{
 
         saveToMessageHistory && this.addMessage(content, 'user');
 
+        let assistantMessageIndex = undefined;
         try{
             //#region Fetching the API
             const messageRes = await fetch("https://heylock.dev/api/v1/message", {
@@ -670,26 +672,26 @@ export default class Heylock{
                     'Authorization': this.agentKey
                 },
                 body: JSON.stringify({
-                    content: content, 
-                    history: this.useMessageHistory && this.messageHistory,
+                    content,
                     stream: false,
-                    context: useContext && this.getContextString()
+                    ...(this.useMessageHistory && this.#messageHistory.length > 0 ? { history: this.messageHistory } : {}),
+                    ...(useContext ? { context: this.getContextString() } : {})
                 })
             });
             //#endregion
 
             //#region Setting rate limits
-            const rateLimitRemainingHeader = messageRes.headers.get('x-ratelimit-remaining');
+            const rateLimitRemainingHeader = messageRes.headers?.get?.('x-ratelimit-remaining');
             const rateLimitRemaining = Number(rateLimitRemainingHeader);
 
-            if(!isNaN(rateLimitRemaining) && rateLimitRemainingHeader !== null){
+            if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining)) {
                 this.#usageRemaining.messages = rateLimitRemaining;
-            } else {
-                this.#usageRemaining.messages--;
             }
             //#endregion
 
             //#region Handling scenarios based on HTTP codes
+            let assistantMessageIndex = undefined;
+
             if(messageRes.status === 500){
                 throw new Error("message failed: we are experiencing temporary server issues. Please try again later.");
             } 
@@ -703,7 +705,7 @@ export default class Heylock{
             }
             
             else if(messageRes.status === 429){
-                if (!isNaN(rateLimitRemaining) && rateLimitRemaining <= 0) {
+                if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining) && rateLimitRemaining <= 0) {
                     throw new Error("message failed: you have reached your message plan limit. Please upgrade your plan or wait for the limit to reset.");
                 } else {
                     throw new Error("message failed: too many requests. Try again later.");
@@ -728,12 +730,16 @@ export default class Heylock{
                     throw new Error("message failed: received an unexpected response from the server. Please ensure you are using the correct version of the package.");
                 }
 
-                saveToMessageHistory && this.addMessage(output, 'assistant'); 
+                assistantMessageIndex = saveToMessageHistory && this.addMessage(output, 'assistant') || undefined; 
 
                 return output;
             }
             //#endregion
         } catch(error){
+            if (saveToMessageHistory && typeof assistantMessageIndex === 'number') {
+                this.modifyMessage(assistantMessageIndex, "An error occurred while processing your request. Please try again later.");
+            }
+
             if(error.message.includes("message failed: ")){
                 throw new Error(error.message);
             }
@@ -770,7 +776,7 @@ export default class Heylock{
         //#endregion
 
         saveToMessageHistory && this.addMessage(content, 'user');
-        const assistantMessageIndex = saveToMessageHistory && this.addMessage('', 'assistant');
+        const assistantMessageIndex = saveToMessageHistory ? this.addMessage('', 'assistant') : undefined;
 
         try{
             //#region Fetching the API
@@ -783,22 +789,20 @@ export default class Heylock{
                     'Authorization': this.agentKey
                 },
                 body: JSON.stringify({
-                    content: content,
-                    history: this.useMessageHistory && historyForStream,
+                    content,
                     stream: true,
-                    context: useContext && this.getContextString()
+                    ...(this.useMessageHistory && Array.isArray(historyForStream) && historyForStream.length > 0 ? { history: historyForStream } : {}),
+                    ...(useContext ? { context: this.getContextString() } : {})
                 })
             });
             //#endregion
 
             //#region Setting rate limits
-            const rateLimitRemainingHeader = messageRes.headers.get('x-ratelimit-remaining');
+            const rateLimitRemainingHeader = messageRes.headers?.get?.('x-ratelimit-remaining');
             const rateLimitRemaining = Number(rateLimitRemainingHeader);
 
-            if(!isNaN(rateLimitRemaining) && rateLimitRemainingHeader !== null){
+            if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining)) {
                 this.#usageRemaining.messages = rateLimitRemaining;
-            } else {
-                this.#usageRemaining.messages--;
             }
             //#endregion
 
@@ -816,7 +820,7 @@ export default class Heylock{
             }
             
             else if(messageRes.status === 429){
-                if (!isNaN(rateLimitRemaining) && rateLimitRemaining <= 0) {
+                if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining) && rateLimitRemaining <= 0) {
                     throw new Error("messageStream failed: you have reached your message plan limit. Please upgrade your plan or wait for the limit to reset.");
                 } else {
                     throw new Error("messageStream failed: too many requests. Try again later.");
@@ -859,7 +863,9 @@ export default class Heylock{
                             if(chunk.message && !chunk.done){
                                 fullMessage += chunk.message;
 
-                                saveToMessageHistory && this.modifyMessage(assistantMessageIndex, fullMessage, 'assistant');
+                                if (saveToMessageHistory && typeof assistantMessageIndex === 'number') {
+                                    this.modifyMessage(assistantMessageIndex, fullMessage, 'assistant');
+                                }
 
                                 yield chunk.message;
                             } else if(chunk.done){
@@ -872,7 +878,9 @@ export default class Heylock{
             //#endregion
             
         } catch(error){
-            this.modifyMessage(assistantMessageIndex, "An error occurred while processing your request. Please try again later.");//Propogate on other message functions
+            if (saveToMessageHistory && typeof assistantMessageIndex === 'number') {
+                this.modifyMessage(assistantMessageIndex, "An error occurred while processing your request. Please try again later.");
+            }
 
             if(error.message.includes("messageStream failed: ")){
                 throw new Error(error.message);
@@ -920,13 +928,21 @@ export default class Heylock{
             effectiveInstructions += ' Take into account our previous conversation history to make the greeting more personalized and contextual';
         }
         
-        try{
-            const output = await this.message(effectiveInstructions, true, false);
+        let assistantMessageIndex = undefined;
 
-            this.addMessage(output, 'assistant');
+        try{
+            const output = await this.message(effectiveInstructions, useContext, false);
+
+            if (saveToMessageHistory) {
+                assistantMessageIndex = this.addMessage(output, 'assistant');
+            }
 
             return output
         } catch(error){
+            if(saveToMessageHistory && typeof assistantMessageIndex === 'number'){
+                this.modifyMessage(assistantMessageIndex, "An error occurred while processing your request. Please try again later.");
+            }
+
             throw new Error(`greet failed - ${error}`);
         }
     }
@@ -940,7 +956,7 @@ export default class Heylock{
         const currentTime = new Date().getTime();
 
         if((currentTime - this.#shouldEngageTimeCalled) < SHOULD_ENGAGE_THROTTLING_MS){
-            console.warn(`shouldEngage ignored: throttling in effect (${SHOULD_ENGAGE_THROTTLING_MS} ms). Please wait before calling again.`);
+            !this.suppressWarnings && console.warn(`shouldEngage ignored: throttling in effect (${SHOULD_ENGAGE_THROTTLING_MS} ms). Please wait before calling again.`);
             return {
                 shouldEngage: false,
                 reasoning: '',
@@ -1057,20 +1073,18 @@ export default class Heylock{
                 },
                 body: JSON.stringify({
                     text: content,
-                    instructions: instructions,
-                    context: useContext && this.getContextString()
+                    instructions,
+                    ...(useContext ? { context: this.getContextString() } : {})
                 })
             });
             //#endregion
 
             //#region Setting rate limits
-            const rateLimitRemainingHeader = rewriteRes.headers.get('x-ratelimit-remaining');
+            const rateLimitRemainingHeader = rewriteRes.headers?.get?.('x-ratelimit-remaining');
             const rateLimitRemaining = Number(rateLimitRemainingHeader);
 
-            if(!isNaN(rateLimitRemaining) && rateLimitRemainingHeader !== null){
+            if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining)) {
                 this.#usageRemaining.rewrites = rateLimitRemaining;
-            } else {
-                this.#usageRemaining.rewrites--;
             }
             //#endregion
 
@@ -1084,7 +1098,7 @@ export default class Heylock{
             } 
             
             else if (rewriteRes.status === 429) {
-                if (!isNaN(rateLimitRemaining) && rateLimitRemaining <= 0) {
+                if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining) && rateLimitRemaining <= 0) {
                     throw new Error("rewrite failed: you have reached your rewrite plan limit. Please upgrade your plan or wait for the limit to reset.");
                 } else {
                     throw new Error("rewrite failed: too many requests. Try again later.");
@@ -1133,8 +1147,11 @@ export default class Heylock{
     async sort(array, instructions, useContext = true){
         //#region Validate arguments
         if (!Array.isArray(array) || array.length < 2) {
+            const safeArray = Array.isArray(array) ? array : [];
+
             return {
-                indexes: Array.isArray(array) ? array.map((item, index) => index) : [],
+                array: safeArray,
+                indexes: safeArray.map((item, index) => index),
                 warning: "Input array is invalid or too short to sort. Returning original array.",
                 fallback: true
             };
@@ -1159,21 +1176,19 @@ export default class Heylock{
                     'Authorization': this.agentKey
                 },
                 body: JSON.stringify({
-                    array: array,
-                    instructions: instructions,
-                    context: useContext && this.getContextString()
+                    array,
+                    instructions,
+                    ...(useContext ? { context: this.getContextString() } : {})
                 })
             });
             //#endregion
 
             //#region Setting rate limits
-            const rateLimitRemainingHeader = sortRes.headers.get('x-ratelimit-remaining');
+            const rateLimitRemainingHeader = sortRes.headers?.get?.('x-ratelimit-remaining');
             const rateLimitRemaining = Number(rateLimitRemainingHeader);
 
-            if(!isNaN(rateLimitRemaining && rateLimitRemainingHeader !== null)){
+            if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining)) {
                 this.#usageRemaining.sorts = rateLimitRemaining;
-            } else {
-                this.#usageRemaining.sorts--;
             }
             //#endregion
         
@@ -1187,7 +1202,7 @@ export default class Heylock{
             } 
             
             else if (sortRes.status === 429) {
-                if (!isNaN(rateLimitRemaining) && rateLimitRemaining <= 0) {
+                if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining) && rateLimitRemaining <= 0) {
                     throw new Error("sort failed: you have reached your sort plan limit. Please upgrade your plan or wait for the limit to reset.");
                 } else {
                     throw new Error("sort failed: too many requests. Try again later.");
@@ -1210,7 +1225,7 @@ export default class Heylock{
             else if (sortRes.status === 200) {
                 const sortData = await sortRes.json();
 
-                if (typeof sortData !== 'object' || sortData === null || !Array.isArray(sortData.indexes) || sortData.indexes.some(idx => typeof idx !== 'number' || !Number.isInteger(idx)) || typeof sortData.reasoning !== 'string') {
+                if (typeof sortData !== 'object' || sortData === null || !Array.isArray(sortData.indexes) || sortData.indexes.some(index => typeof index !== 'number' || !Number.isInteger(index))) {
                     throw new Error("sort failed: received an unexpected response from the server. Please ensure you are using the correct version of the package.");
                 }
 
@@ -1225,7 +1240,7 @@ export default class Heylock{
                 return {
                     array: sortedArray,
                     indexes: sortData.indexes,
-                    reasoning: sortData.reasoning,
+                    reasoning: typeof sortData.reasoning === 'string' ? sortData.reasoning : undefined,
                     fallback: typeof sortData.fallback === 'boolean' ? sortData.fallback : false
                 };
             }

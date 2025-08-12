@@ -6,6 +6,7 @@
  * @property useStorage - Whether to use localStorage in the browser.
  * @property suppressWarnings - Whether to suppress warnings in the console.
  * @property useMessageHistory - Whether to use chat history when generating a response.
+ * @property agentId - Optional ID for multi-agent setups, defaults to 'default'
  * @remarks Messages will still be saved to messageHistory unless you specify otherwise when using message(), messageStream(), or greet().
  *
  * @example
@@ -21,6 +22,7 @@ export interface AgentOptions {
     useStorage?: boolean;
     useMessageHistory?: boolean;
     suppressWarnings?: boolean;
+    agentId?: string;
 }
 
 /**
@@ -83,9 +85,9 @@ export interface ContextEntry {
  * });
  */
 export interface UsageRemaining {
-    messages: number | null;
-    sorts: number | null;
-    rewrites: number | null;
+    readonly messages: number | null;
+    readonly sorts: number | null;
+    readonly rewrites: number | null;
 }
 
 /**
@@ -216,7 +218,7 @@ export default class Heylock {
      *   if (!success) console.error('Init failed');
      * });
      */
-    constructor(agentKey: string, options?: AgentOptions) {}
+    constructor(agentKey: string, options?: AgentOptions);
 
     //#region Agent properties
 
@@ -270,7 +272,7 @@ export default class Heylock {
      *
      * console.log(agent.messageHistory); // [{ content: 'Hi', role: 'user' }]
      */
-    readonly messageHistory: Array<Message>;
+    readonly messageHistory: ReadonlyArray<Message>;
 
     /**
      * Gets the context for the agent.
@@ -287,7 +289,7 @@ export default class Heylock {
      * 
      * console.log(agent.context[0].content); // 'User loves sci-fi books'
      */
-    readonly context: Array<ContextEntry>;
+    readonly context: ReadonlyArray<ContextEntry>;
 
     //#endregion
 

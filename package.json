@@ -5,7 +5,7 @@
   "type": "module",
   "types": "./types.d.ts",
   "scripts": {
-    "test": "jest",
+    "test": "jest && npx tsc --noEmit",
     "build": "esbuild src/index.js --bundle --minify --format=esm --outfile=dist/index.min.js"
   },
   "repository": {
@@ -24,6 +24,9 @@
     "@babel/preset-env": "^7.28.0",
     "babel-jest": "^30.0.5",
     "esbuild": "^0.25.8",
-    "jest": "^30.0.5"
+    "jest": "^30.0.5",
+    "jest-environment-jsdom": "^30.0.5",
+    "tsc": "^2.0.4",
+    "typescript": "^5.9.2"
   }
 }
