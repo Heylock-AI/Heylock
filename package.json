@@ -1,0 +1,29 @@
+{
+  "name": "heylock",
+  "version": "0.1.0",
+  "main": "dist/index.min.js",
+  "type": "module",
+  "types": "./types.d.ts",
+  "scripts": {
+    "test": "jest",
+    "build": "esbuild src/index.js --bundle --minify --format=esm --outfile=dist/index.min.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Heylock-AI/heylock.git"
+  },
+  "author": "Heylock",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Heylock-AI/heylock/issues"
+  },
+  "homepage": "https://github.com/Heylock-AI/heylock#readme",
+  "description": "",
+  "devDependencies": {
+    "@babel/core": "^7.28.0",
+    "@babel/preset-env": "^7.28.0",
+    "babel-jest": "^30.0.5",
+    "esbuild": "^0.25.8",
+    "jest": "^30.0.5"
+  }
+}
