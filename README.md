@@ -6,52 +6,94 @@
 <p align="left">
 	<a href="https://www.npmjs.com/package/heylock"><img src="https://img.shields.io/npm/v/heylock?color=3178c6&label=npm%20version" alt="npm version" /></a>
 	<a href="https://www.npmjs.com/package/heylock"><img src="https://img.shields.io/npm/dm/heylock.svg?color=blue" alt="npm downloads" /></a>
-	<a href="https://github.com/Heylock-AI/heylock/actions"><img src="https://img.shields.io/github/actions/workflow/status/Heylock-AI/heylock/ci.yml?label=build" alt="build status" /></a>
-	<a href="https://bundlephobia.com/package/heylock"><img src="https://img.shields.io/bundlephobia/minzip/heylock?label=min%2Bgzip" alt="bundle size" /></a>
 	<img src="https://img.shields.io/badge/Types-Included-success" alt="types included" />
 	<img src="https://img.shields.io/badge/Module-ESM_only-orange" alt="esm only" />
 	<a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-lightgrey.svg" alt="license" /></a>
 </p>
 
 ## Table of Contents
-
+- [Overview](#overview)
+- [Features](#features)
+	- [Developer Gains at a Glance](#developer-gains-at-a-glance)
+- [Registration & Prerequisites](#registration--prerequisites)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Concepts](#concepts)
+- [Usage Guide](#usage-guide)
+	- [1. Initialization & Lifecycle](#1-initialization--lifecycle)
+	- [2. Context Management](#2-context-management)
+	- [3. Message History](#3-message-history)
+	- [4. Sending Messages](#4-sending-messages)
+	- [5. Greeting](#5-greeting)
+	- [6. Engagement Decision](#6-engagement-decision)
+	- [7. Rewrite](#7-rewrite)
+	- [8. Sort](#8-sort)
+	- [9. Usage Limits](#9-usage-limits)
+- [Configuration & Options](#configuration--options)
+- [Best Practices](#best-practices)
+	- [Writing Good Context Entries](#writing-good-context-entries)
+	- [Minimizing Sensitive Data Exposure](#minimizing-sensitive-data-exposure)
+	- [Streaming UI Pattern](#streaming-ui-pattern)
+	- [Handling Fallbacks & Warnings](#handling-fallbacks--warnings)
+	- [Engagement Throttling Recommendations](#engagement-throttling-recommendations)
+	- [Retry & Backoff Strategy](#retry--backoff-strategy)
+	- [Efficient Context Lifecycle](#efficient-context-lifecycle)
+	- [Server vs Browser Separation](#server-vs-browser-separation)
+	- [Using `rewrite` Safely](#using-rewrite-safely)
+	- [Sorting for Personalization](#sorting-for-personalization)
+	- [LocalStorage Hygiene (when `useStorage` true)](#localstorage-hygiene-when-usestorage-true)
+	- [Defensive UI States](#defensive-ui-states)
+	- [Graceful Degradation](#graceful-degradation)
+	- [Internationalization](#internationalization)
+	- [Cleaning / Resetting Sessions](#cleaning--resetting-sessions)
+	- [Multi-Agent Architecture](#multi-agent-architecture)
+- [Troubleshooting / FAQ](#troubleshooting--faq)
+- [Security Notes](#security-notes)
+- [License](#license)
+- [Support](#support)
 
 
 ## Overview
 
-Heylock is an AI agent SDK that wraps the Heylock API and adds client‑side conveniences:
+Heylock makes your app super smart, super fast. It’s like entroducing magic to your code!
 
-- Context management (with optional browser persistence)
-- Message history lifecycle & callbacks
-- Streaming responses as async generators
-- Engagement decision helper (`shouldEngage()`)
-- Conversation starter (`greet()`)
-- AI‑assisted `sort()` for personalization / ranking
-- AI `rewrite()` for tone / grammar / normalization
-- Usage limits helper (`fetchUsageRemaining()`)
+- Remembers what people do and say (so you don’t have to)
+- Talks back to users, like a real chat buddy
+- Helps you sort stuff (literally anything) and fix words to sound better
+- Knows when to pop up and engage a prospect
+- Shows answers as they come in, not all at once
+- And it's very easy to use
 
-You configure your agent (behavior + knowledge base) in the Heylock dashboard, then interact with it programmatically here.
+You just set up your agent in the Heylock website, then use this package to make your app awesome. No hard work. No boring code. Just plug it in and look smart.
 
-When to use this package vs raw API:
-- Use the package if you want built‑in state, history, context, throttling, and TypeScript types.
-- Use the raw API if you need a minimal, stateless server integration or fully custom networking stack.
+Why use Heylock?
+- You get all the cool features with almost no work
+- It saves you hours (maybe days!)
+- Your users will think you’re a genius
+
+Don’t use the old, hard way. Use Heylock and make your app amazing!
 
 ## Features
 
-| Feature | SDK | Raw API | Notes (why you care) |
-|---------|-----|---------|--------------------|
-| Message send (`message`) | ✅ | ✅ | One simple call. We check it, add context if you want, and save it to history. Less glue code. |
-| Streaming (`messageStream`) | ✅ | ✅ | Get the answer piece by piece. Easy real‑time feel with an async generator. |
-| Greeting (`greet`) | ✅ | ✅ | Quick first message so you don’t write a custom prompt. Engage a prospect in the most suitable way. |
-| Engagement (`shouldEngage`) | ✅ | ✅ | Helps decide “Should I pop up now?” |
-| Rewrite (`rewrite`) | ✅ | ✅ | Fix tone or grammar with one line. No extra prompt templates. |
-| Sort (`sort`) | ✅ | ✅ | AI sorts your list. Gives new order, original indexes, and a short reason you can use for debug. |
-| Context management | ✅ | ❌ | Add little facts (context) so everything is tailored to a specific user. Can save in browser (localStorage) if you want. |
-| Message history | ✅ | ❌ | Full chat transcript you can watch, change, clear. No custom code needed. |
-| Usage limits (`fetchUsageRemaining`) | ✅ | ✅ | Know your remaining quota so you can hide buttons before errors. |
+See what you get in minutes (not days) — these ship out‑of‑the‑box so you write product, not glue. Each one is about faster build, higher conversions, smarter UX.
+
+- 💬 Message (`message`) – Create AI chat in minutes. 
+- 🔄 Streaming (`messageStream`) – Token‑by‑token replies for "instant" feel. Users stay engaged; bounce drops.
+- 👋 Greeting (`greet`) – Tailored first message so prospects are more likely to engage.
+- 🕵️ Engagement Brain (`shouldEngage`) – Asks “Should I pop up now?” with reasoning for debugging. Triggers at the right moment → more conversions, less annoyance.
+- ✍️ Rewrite (`rewrite`) – Fix tone/grammar in one line. Use tailored copy.
+- 📊 Sort (`sort`) – AI ranks any list (products, leads, docs, literally anything). Better ordering → more clicks.
+- 🧠 Context Store – Log user actions to enable personalized experience on your website.
+- 🗂️ Message History – Full chat transcript managed for you (modify / clear / stream updates).
+- 🚦 Usage Limits (`fetchUsageRemaining`) – Know remaining quota early; hide buttons before errors.
+
+Why you should care:
+- ⚡ Integrate core agent features in under 5 minutes.
+- 🛠️ Tailor your website’s experience for each user, so your site adapts to them in real time.
+- 🧠 Your users will think you’re a genius for implementing all of this.
 
 ### Developer Gains at a Glance
-* You don’t need to build: streaming parser, rate limiter, context store, chat log manager, AI sorter, rewrite tool.
+* You don’t need to build: streaming parser, rate limiter, context store, chat log manager, AI sorter, rewrite tool. Just import and use.
 * Make a real chat + smart features in minutes instead of days.
 * Clear reasons (from sort & engage) help you tune and A/B test fast.
 * Safety built in: input checks, defensive copies = fewer weird bugs.
@@ -60,14 +102,14 @@ When to use this package vs raw API:
 ## Registration & Prerequisites
 
 1. Create an account at https://heylock.dev
-2. Create an agent in the dashboard; configure behavior + knowledge base.
-3. Generate the agent secret key from the agent's dashboard.
-4. Keep this key secure. It should NOT be exposed in untrusted client code (see Security Notes).
+2. Create an agent in the dashboard.
+3. Configure personality and knowledge.
+3. Generate the secret key.
 5. Start using AI agents!
 
 ## Installation
 
-ESM only.
+Run this in your console.
 
 ```bash
 npm install heylock
@@ -82,18 +124,13 @@ Runtime requirements:
 ```ts
 import Heylock from 'heylock';
 
-// NOTE: For security, prefer using the SDK server-side with your secret key.
-// If you MUST call from the browser, proxy requests and do not embed the secret directly.
-
 const agent = new Heylock(process.env.HEYLOCK_AGENT_KEY, {
-	useStorage: false,          // avoid persisting context in browser if running server-side
+	useStorage: false,          // Set to false when running server-side
 	useMessageHistory: true,
 	suppressWarnings: false
 });
 
 agent.onInitialized(async (success) => {
-	if (!success) return console.error('Initialization failed');
-
 	const reply = await agent.message('Hello, Heylock!');
     
 	console.log('Agent:', reply);
@@ -112,13 +149,12 @@ for await (const chunk of agent.messageStream('Explain this feature briefly.')) 
 
 | Concept | Summary |
 |---------|---------|
-| Agent | Configured in dashboard; referenced via secret key. |
-| Context | Array of contextual events you append; can influence responses. |
-| Message History | Local chronological transcript (user + assistant) managed by SDK. |
-| Streaming | Async generator yields tokens / chunks incrementally. |
-| Engagement Throttling | `shouldEngage()` enforces a ~15s cooldown to avoid spam. |
-| Usage Limits | Quotas for messages / sorts / rewrites retrievable via `fetchUsageRemaining()`. |
-| Fallbacks | Some methods may return partial results with `fallback: true` and/or warnings (see each method). |
+| Agent | Your AI agent, set up in dashboard, used by key |
+| Context | List of user actions for better replies |
+| Message History | Chat log of user and assistant messages |
+| Streaming | Get reply chunks as they arrive |
+| Usage Limits | Shows how many AI actions you have left |
+| Fallbacks | Returns partial results or warnings if needed |
 
 ## Usage Guide
 
@@ -161,6 +197,7 @@ for await (const chunk of agent.messageStream('Explain this feature briefly.')) 
 ### 9. Usage Limits
 - `fetchUsageRemaining()` — Check how many messages, sorts, and rewrites you have left.
 
+## Type Definitions
 Interfaces:
 - `AgentOptions` (`useStorage`, `useMessageHistory`, `suppressWarnings`, `agentId`)
 - `Message`
