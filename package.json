@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "main": "dist/index.min.js",
   "type": "module",
-  "types": "src/types.d.ts",
+  "types": "dist/types.d.ts",
   "scripts": {
     "test": "jest --config jest.config.cjs && npx tsc --noEmit",
     "build": "esbuild src/index.js --bundle --minify --format=esm --outfile=dist/index.min.js && cp src/types.d.ts dist/types.d.ts"
