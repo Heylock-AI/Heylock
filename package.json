@@ -1,12 +1,12 @@
 {
   "name": "heylock",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "dist/index.min.js",
   "type": "module",
-  "types": "./types.d.ts",
+  "types": "src/types.d.ts",
   "scripts": {
-    "test": "jest && npx tsc --noEmit",
-    "build": "esbuild src/index.js --bundle --minify --format=esm --outfile=dist/index.min.js"
+    "test": "jest --config jest.config.cjs && npx tsc --noEmit",
+    "build": "esbuild src/index.js --bundle --minify --format=esm --outfile=dist/index.min.js && cp src/types.d.ts dist/types.d.ts"
   },
   "repository": {
     "type": "git",

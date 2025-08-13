@@ -1,4 +1,3 @@
-// This file should be named index.types-check.ts so Jest ignores it.
 // Run type checks with: npx tsc --noEmit src/index.types-check.ts
 // This file is now named index.types-check.ts to avoid Jest test glob.
 // Run type checks with: npx tsc --noEmit src/index.types-check.ts
