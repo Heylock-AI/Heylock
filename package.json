@@ -1,6 +1,6 @@
 {
   "name": "heylock",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "main": "dist/index.min.js",
   "type": "module",
   "types": "types.d.ts",
