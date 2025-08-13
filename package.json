@@ -1,6 +1,6 @@
 {
   "name": "heylock",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "main": "dist/index.min.js",
   "type": "module",
   "types": "types.d.ts",
@@ -12,8 +12,8 @@
     "type": "git",
     "url": "git+https://github.com/Heylock-AI/heylock.git"
   },
-  "author": "Heylock",
-  "license": "ISC",
+  "author": "Heylock team",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/Heylock-AI/heylock/issues"
   },
