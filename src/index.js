@@ -1,8 +1,6 @@
 const MAX_MESSAGE_LENGTH = 10000;
 const MAX_CONTEXT_ENTRY_LENGTH = 2000;
-const SHOULD_ENGAGE_THROTTLING_MS = 15000;
-
-//decrease on message if headers are null
+const SHOULD_ENGAGE_THROTTLE_MS = 15000;
 
 export default class Heylock{    
     //#region Initialization
@@ -663,6 +661,10 @@ export default class Heylock{
 
         saveToMessageHistory && this.addMessage(content, 'user');
 
+        const safeMessageHistory = this.#messageHistory.filter(message => {
+            return message.content.length < MAX_MESSAGE_LENGTH && message.content.length > 0 && (message.role === 'user' || message.role === 'assistant');
+        });
+
         let assistantMessageIndex = undefined;
         try{
             //#region Fetching the API
@@ -674,18 +676,18 @@ export default class Heylock{
                 body: JSON.stringify({
                     content,
                     stream: false,
-                    ...(this.useMessageHistory && this.#messageHistory.length > 0 ? { history: this.messageHistory } : {}),
+                    ...(this.useMessageHistory && safeMessageHistory.length > 0 ? { history: safeMessageHistory } : {}),
                     ...(useContext ? { context: this.getContextString() } : {})
                 })
             });
             //#endregion
 
-            //#region Setting rate limits
-            const rateLimitRemainingHeader = messageRes.headers?.get?.('x-ratelimit-remaining');
-            const rateLimitRemaining = Number(rateLimitRemainingHeader);
+            //#region Setting usage limits
+            const usageLimitRemainingHeader = messageRes.headers?.get?.('Plan-Remaining');
+            const usageLimitRemaining = Number(usageLimitRemainingHeader);
 
-            if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining)) {
-                this.#usageRemaining.messages = rateLimitRemaining;
+            if (usageLimitRemainingHeader != null && !Number.isNaN(usageLimitRemaining)) {
+                this.#usageRemaining.messages = usageLimitRemaining;
             }
             //#endregion
 
@@ -697,7 +699,7 @@ export default class Heylock{
             } 
 
             else if(messageRes.status === 400){
-                throw new Error("message failed: please check arguments. Refer to the documentation for more information (see documentation link)."); // Add documentation link
+                throw new Error("message failed: please check arguments. Refer to the documentation for more information (see https://heylock.dev/app/learn/node/messaging).");
             }
             
             else if(messageRes.status === 401){
@@ -705,7 +707,7 @@ export default class Heylock{
             }
             
             else if(messageRes.status === 429){
-                if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining) && rateLimitRemaining <= 0) {
+                if (usageLimitRemainingHeader != null && !Number.isNaN(usageLimitRemaining) && usageLimitRemaining <= 0) {
                     throw new Error("message failed: you have reached your message plan limit. Please upgrade your plan or wait for the limit to reset.");
                 } else {
                     throw new Error("message failed: too many requests. Try again later.");
@@ -783,6 +785,10 @@ export default class Heylock{
             // Must be let. Otherwise will be undefined.
             let historyForStream = Array.isArray(this.messageHistory) ? this.messageHistory.filter((message, index) => index !== assistantMessageIndex) : undefined;
 
+            historyForStream = historyForStream.filter(message => {
+                return message.content.length < MAX_MESSAGE_LENGTH && message.content.length > 0 && (message.role === 'user' || message.role === 'assistant');
+            });
+
             const messageRes = await fetch("https://heylock.dev/api/v1/message", {
                 method: 'POST',
                 headers: {
@@ -798,7 +804,7 @@ export default class Heylock{
             //#endregion
 
             //#region Setting rate limits
-            const rateLimitRemainingHeader = messageRes.headers?.get?.('x-ratelimit-remaining');
+            const rateLimitRemainingHeader = messageRes.headers?.get?.('Plan-Remaining');
             const rateLimitRemaining = Number(rateLimitRemainingHeader);
 
             if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining)) {
@@ -812,7 +818,7 @@ export default class Heylock{
             } 
 
             else if(messageRes.status === 400){
-                throw new Error("messageStream failed: please check arguments. Refer to the documentation for more information (see documentation link)."); // Add documentation link
+                throw new Error("messageStream failed: please check arguments. Refer to the documentation for more information (see https://heylock.dev/app/learn/node/streaming).");
             }
             
             else if(messageRes.status === 401){
@@ -918,7 +924,7 @@ export default class Heylock{
         let effectiveInstructions = '';
 
         if(instructions){
-            effectiveInstructions = `Write a greeting message encouraging the visitor to interact with you. Use instructions: ${instructions}`;
+            effectiveInstructions = `Write a short greeting message encouraging the visitor to interact with you. Use instructions: ${instructions}`;
         } else {
             effectiveInstructions = 'Greet the visitor in one short, friendly sentence. Encourage interaction. Sound human.';
             if(useContext) effectiveInstructions += " Mention their interests or passions subtly.";
@@ -955,12 +961,12 @@ export default class Heylock{
         //#region Throttling
         const currentTime = new Date().getTime();
 
-        if((currentTime - this.#shouldEngageTimeCalled) < SHOULD_ENGAGE_THROTTLING_MS){
-            !this.suppressWarnings && console.warn(`shouldEngage ignored: throttling in effect (${SHOULD_ENGAGE_THROTTLING_MS} ms). Please wait before calling again.`);
+        if((currentTime - this.#shouldEngageTimeCalled) < SHOULD_ENGAGE_THROTTLE_MS){
+            !this.suppressWarnings && console.warn(`shouldEngage ignored: throttling in effect (${SHOULD_ENGAGE_THROTTLE_MS} ms). Please wait before calling again.`);
             return {
                 shouldEngage: false,
                 reasoning: '',
-                warning: `Throttling in effect (${SHOULD_ENGAGE_THROTTLING_MS} ms). Please wait before calling again`,
+                warning: `Throttling in effect (${SHOULD_ENGAGE_THROTTLE_MS} ms). Please wait before calling again`,
                 fallback: true
             };
         }
@@ -1080,7 +1086,7 @@ export default class Heylock{
             //#endregion
 
             //#region Setting rate limits
-            const rateLimitRemainingHeader = rewriteRes.headers?.get?.('x-ratelimit-remaining');
+            const rateLimitRemainingHeader = rewriteRes.headers?.get?.('Plan-Remaining');
             const rateLimitRemaining = Number(rateLimitRemainingHeader);
 
             if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining)) {
@@ -1184,7 +1190,7 @@ export default class Heylock{
             //#endregion
 
             //#region Setting rate limits
-            const rateLimitRemainingHeader = sortRes.headers?.get?.('x-ratelimit-remaining');
+            const rateLimitRemainingHeader = sortRes.headers?.get?.('Plan-Remaining');
             const rateLimitRemaining = Number(rateLimitRemainingHeader);
 
             if (rateLimitRemainingHeader != null && !Number.isNaN(rateLimitRemaining)) {

@@ -1,9 +1,29 @@
 {
   "name": "heylock",
-  "version": "0.1.6",
+  "version": "0.2.3",
+  "description": "Zero‑friction AI agent integration for JavaScript & TypeScript projects.",
+  "keywords": [
+    "ai-agent",
+    "chatbot",
+    "ai-integration",
+    "ai-sorting",
+    "typescript",
+    "javascript",
+    "context-management",
+    "message-streaming",
+    "rewrite",
+    "sort",
+    "engagement",
+    "conversion",
+    "gpt",
+    "openai",
+    "ai-sdk",
+    "heylock",
+    "quick-integration"
+  ],
   "main": "dist/index.min.js",
-  "type": "module",
   "types": "types.d.ts",
+  "type": "module",
   "scripts": {
     "test": "jest --config jest.config.cjs && npx tsc --noEmit",
     "build": "esbuild src/index.js --bundle --minify --format=esm --outfile=dist/index.min.js && cp src/types.d.ts dist/types.d.ts && cp src/types.d.ts types.d.ts"
@@ -18,7 +38,6 @@
     "url": "https://github.com/Heylock-AI/heylock/issues"
   },
   "homepage": "https://github.com/Heylock-AI/heylock#readme",
-  "description": "",
   "devDependencies": {
     "@babel/core": "^7.28.0",
     "@babel/preset-env": "^7.28.0",

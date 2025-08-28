@@ -55,7 +55,7 @@
 
 ## Overview
 
-Heylock makes your app super smart, super fast. It’s like entroducing magic to your code!
+Heylock makes your app super smart, super fast.
 
 - Remembers what people do and say (so you don’t have to)
 - Talks back to users, like a real chat buddy
@@ -412,6 +412,4 @@ For questions or assistance, contact [support@heylock.dev](mailto:support@heyloc
 Apache 2.0. See [LICENSE](./LICENSE).
 
 ## Support
-
-- Issues: GitHub Issues
 - Email: support@heylock.dev
